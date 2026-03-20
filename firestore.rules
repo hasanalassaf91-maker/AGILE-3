@@ -1,0 +1,190 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Fields:
+//   - uid: string (required)
+//   - email: string (required)
+//   - name: string (required)
+//   - role: string (required, enum: admin, coordinator, trainer, client, participant)
+//   - organizationId: string (optional)
+//
+// Collection: courses
+// Fields:
+//   - name: string (required)
+//   - referenceNumber: string (required)
+//   - startDate: string (required)
+//   - endDate: string (required)
+//   - location: string (required)
+//   - status: string (required, enum: upcoming, active, completed)
+//   - materialReceived: bool (optional)
+//   - trainerId: string (optional)
+//   - coordinatorId: string (optional)
+//   - clientId: string (optional)
+//
+// Subcollection: courses/{courseId}/dailyLogs
+// Fields:
+//   - courseId: string (required)
+//   - date: string (required)
+//   - trainerArrivalTime: string (optional)
+//   - participantArrivalTime: string (optional)
+//   - trainerOutfit: string (optional, enum: Formal, Semi-Formal, Casual)
+//   - presentationUsed: bool (optional)
+//   - clientImpression: string (optional)
+//   - exceptionalNotes: string (optional)
+//   - incidents: string (optional)
+//   - coordinatorId: string (required)
+//
+// Subcollection: courses/{courseId}/notes
+// Fields:
+//   - content: string (required)
+//   - authorId: string (required)
+//   - authorName: string (required)
+//   - createdAt: string (required)
+//
+// Subcollection: courses/{courseId}/attachments
+// Fields:
+//   - name: string (required)
+//   - type: string (required)
+//   - url: string (required)
+//   - size: number (required)
+//   - uploadedBy: string (required)
+//   - uploadedByName: string (required)
+//   - createdAt: string (required)
+//
+// Collection: notifications
+// Fields:
+//   - userId: string (required)
+//   - title: string (required)
+//   - message: string (required)
+//   - type: string (required, enum: info, warning, error, success)
+//   - isRead: bool (required)
+//   - createdAt: string (required)
+//   - courseId: string (optional)
+//   - isUrgent: bool (optional)
+//   - uniqueKey: string (optional)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : {};
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().get('role', 'guest') == role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "hasan.alassaf91@gmail.com" || 
+        getUserData().get('role', 'guest') == 'admin'
+      );
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.email == "hasan.alassaf91@gmail.com";
+    }
+
+    function isSales() {
+      return hasRole('sales');
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isOperation() {
+      return getUserData().get('department', '') == 'Operation';
+    }
+
+    function isAccountant() {
+      let data = getUserData();
+      return isAdmin() || 
+             isSuperAdmin() ||
+             data.get('role', 'guest') == 'accountant' || 
+             data.get('role', 'guest') == 'finance' ||
+             isOperation();
+    }
+
+    // User Rules
+    match /users/{uid} {
+      allow get, list: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || isOperation() || isOwner(uid) || isSuperAdmin();
+    }
+
+    // Notification Rules
+    match /notifications/{notificationId} {
+      allow get: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated() && (
+        isAdmin() || (resource.data.userId == request.auth.uid)
+      );
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated(); 
+    }
+
+    // Private Notes Rules
+    match /privateNotes/{noteId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Course Rules
+    match /courses/{courseId} {
+      allow get, list: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || isOperation() || isSuperAdmin();
+      allow create: if isSales();
+      allow update: if hasRole('coordinator') || isSales();
+      
+      match /dailyLogs/{logId} {
+        allow get, list: if isAuthenticated();
+        allow create, update, delete: if isAdmin() || hasRole('coordinator') || isOperation() || isSuperAdmin();
+      }
+
+      match /attendance/{attendanceId} {
+        allow get, list: if isAuthenticated();
+        allow create, update, delete: if isAdmin() || hasRole('coordinator') || hasRole('trainer') || isOperation() || isSuperAdmin();
+      }
+
+      match /feedback/{feedbackId} {
+        allow get, list: if isAuthenticated();
+        allow create: if hasRole('participant') || isAdmin() || isSuperAdmin();
+        allow update, delete: if isAdmin() || isSuperAdmin();
+      }
+
+      match /notes/{noteId} {
+        allow get, list: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update, delete: if isAdmin() || isOperation() || isSuperAdmin() || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+      }
+
+      match /attachments/{attachmentId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isAdmin() || isOperation() || isSuperAdmin() || (isAuthenticated() && resource.data.uploadedBy == request.auth.uid);
+        allow create: if isAuthenticated();
+      }
+
+      match /accountingEntries/{entryId} {
+        allow get, list: if isAuthenticated();
+        allow create, update, delete: if isAccountant() || isAdmin() || isOperation() || isSuperAdmin();
+
+        match /comments/{commentId} {
+          allow get, list: if isAuthenticated();
+          allow create: if isAccountant() || isAdmin() || isSuperAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/courses/$(courseId)).data.coordinatorId == request.auth.uid);
+          allow delete: if isAdmin() || isSuperAdmin() || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with specific roles and organization context.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "coordinator", "trainer", "client", "participant", "sales", "accountant", "finance"] },
+        "organizationId": { "type": "string", "description": "ID of the B2B client organization if applicable" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "A training course instance.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "referenceNumber": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "location": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "active", "completed"] },
+        "isConfirmedBySales": { "type": "boolean", "description": "Whether the sales department has confirmed the course" },
+        "materialReceived": { "type": "boolean" },
+        "trainerId": { "type": "string" },
+        "coordinatorId": { "type": "string" },
+        "coordinatorName": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "clientCompany": { "type": "string" },
+        "salesPersonId": { "type": "string" },
+        "salesPersonName": { "type": "string" },
+        "checklist": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["name", "referenceNumber", "startDate", "endDate", "status"]
+    },
+    "DailyLog": {
+      "title": "Daily Log",
+      "description": "Daily field report for a course.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "trainerArrivalTime": { "type": "string" },
+        "participantArrivalTime": { "type": "string" },
+        "trainerOutfit": { "type": "string", "enum": ["Formal", "Semi-Formal", "Casual"] },
+        "presentationUsed": { "type": "boolean" },
+        "clientImpression": { "type": "string" },
+        "exceptionalNotes": { "type": "string" },
+        "incidents": { "type": "string" },
+        "coordinatorId": { "type": "string" }
+      },
+      "required": ["courseId", "date", "coordinatorId"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Attendance record for a participant on a specific day.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "participantId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["present", "absent", "late"] }
+      },
+      "required": ["courseId", "participantId", "date", "status"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "Participant feedback (daily or final).",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "participantId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["daily", "final"] },
+        "ratings": { "type": "object" },
+        "comments": { "type": "string" }
+      },
+      "required": ["courseId", "participantId", "type"]
+    },
+    "CourseNote": {
+      "title": "Course Note",
+      "description": "General notes added to a course.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["courseId", "content", "authorId", "createdAt"]
+    },
+    "CourseAttachment": {
+      "title": "Course Attachment",
+      "description": "Files attached to a course.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "url": { "type": "string" },
+        "size": { "type": "number" },
+        "uploadedBy": { "type": "string" },
+        "uploadedByName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["courseId", "name", "url", "uploadedBy", "createdAt"]
+    },
+    "AccountingEntry": {
+      "title": "Accounting Entry",
+      "description": "Financial entry for a course (cost or payment).",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "type": { "type": "string", "enum": ["cost", "payment"] },
+        "value": { "type": "number" },
+        "currency": { "type": "string", "enum": ["USD", "EUR", "SAR", "AED", "GBP"] },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "isZeroValue": { "type": "boolean" },
+        "assignedTo": { "type": "array", "items": { "type": "string" } },
+        "checkRequests": { "type": "array", "items": { "type": "string" } },
+        "checkedBy": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["courseId", "type", "value", "currency", "date", "description", "createdAt", "createdBy"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System notification for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "warning", "error", "success"] },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "courseId": { "type": "string" },
+        "isUrgent": { "type": "boolean" }
+      },
+      "required": ["userId", "title", "message", "type", "isRead", "createdAt"]
+    },
+    "PrivateNote": {
+      "title": "Private Note",
+      "description": "A private personal note for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Optional image attached to the note" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Course details"
+    },
+    "/courses/{courseId}/dailyLogs/{logId}": {
+      "schema": "DailyLog",
+      "description": "Daily logs for a course"
+    },
+    "/courses/{courseId}/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Attendance records"
+    },
+    "/courses/{courseId}/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Feedback records"
+    },
+    "/courses/{courseId}/notes/{noteId}": {
+      "schema": "CourseNote",
+      "description": "Course notes"
+    },
+    "/courses/{courseId}/attachments/{attachmentId}": {
+      "schema": "CourseAttachment",
+      "description": "Course attachments"
+    },
+    "/courses/{courseId}/accountingEntries/{entryId}": {
+      "schema": "AccountingEntry",
+      "description": "Accounting entries for a course"
+    },
+    "/privateNotes/{noteId}": {
+      "schema": "PrivateNote",
+      "description": "Private personal notes for users"
+    }
+  }
+}
